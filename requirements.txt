@@ -1,0 +1,8 @@
+flask
+openai
+pdf2image
+numpy
+opencv-python-headless
+lmdeploy
+pillow
+timm

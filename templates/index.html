@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Table to LaTeX</title>
+    <style>
+        body {
+            font-family: "Segoe UI", sans-serif;
+            background-color: #f5f7fa;
+            padding: 40px;
+            color: #333;
+        }
+
+        h2, h3 {
+            text-align: center;
+            color: #222;
+        }
+
+        .card {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            padding: 30px;
+        }
+
+        #dropzone {
+            border: 2px dashed #bbb;
+            padding: 40px 20px;
+            text-align: center;
+            color: #666;
+            border-radius: 10px;
+            transition: background 0.2s ease-in-out, border-color 0.2s;
+            background-color: #fff;
+            cursor: pointer;
+            position: relative;
+        }
+
+        #dropzone.dragover {
+            background-color: #e0f7ff;
+            border-color: #4A90E2;
+        }
+
+        #preview, #rendered-img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin-top: 12px;
+            border: 1px solid #ccc;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        #preview-placeholder {
+            color: #aaa;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+
+        #status-text {
+            text-align: right;
+            margin-top: -10px;
+            margin-bottom: 5px;
+            color: #666;
+            font-style: italic;
+            font-size: 15px;
+        }
+
+        #output {
+            white-space: pre-wrap;
+            margin-top: 10px;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-family: monospace;
+        }
+
+        button {
+            background-color: #4A90E2;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background-color: #357ABD;
+        }
+
+        #copy-button {
+            background-color: #10B981;
+            margin-top: 10px;
+        }
+
+        #copy-button:hover {
+            background-color: #0e9f6e;
+        }
+
+        #clear-button {
+            background-color: #e57373;
+        }
+
+        #clear-button:hover {
+            background-color: #d9534f;
+        }
+
+        .button-row {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4A90E2;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>📤 Drag & Drop, Paste, or Click to Upload Table Image</h2>
+
+        <div id="dropzone">
+            <input type="file" id="image" name="image" accept="image/*">
+            <img id="preview" src="#" alt="Image Preview" style="display:none;">
+            <div id="preview-placeholder">No image yet. You can drag & drop / paste / click to upload.</div>
+        </div>
+
+        <div class="button-row">
+            <button id="convert-button">Convert</button>
+            <button id="render-button">Render</button>
+            <button id="clear-button">Clear</button>
+        </div>
+
+        <div style="position: relative; margin-bottom: 5px;">
+            <h2 style="text-align: center; margin: 20px 0 0;">📄 LaTeX Output</h2>
+            <span id="status-text" style="
+                position: absolute;
+                right: 0;
+                top: 50%;
+                transform: translateY(-50%);
+                font-size: 15px;
+                color: #666;
+                font-style: italic;
+            "></span>
+        </div>
+        
+        
+        <div id="output">No result yet.</div>
+
+        <div class="button-row">
+            <button id="copy-button">📋 Copy LaTeX</button>
+        </div>
+        <div id="loading" class="loader"></div>
+
+        <h2>🖼️ Rendered Image</h2>
+        <div id="render-placeholder" style="color: #aaa; font-size: 14px; margin-top: 10px;">
+            No image rendered yet.
+        </div>
+        <img id="rendered-img" alt="Rendered Output" style="display:none;">
+    </div>
+
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('image');
+        const output = document.getElementById('output');
+        const convertButton = document.getElementById('convert-button');
+        const renderButton = document.getElementById('render-button');
+        const clearButton = document.getElementById('clear-button');
+        const preview = document.getElementById('preview');
+        const renderedImg = document.getElementById('rendered-img');
+        const loading = document.getElementById('loading');
+        const copyButton = document.getElementById('copy-button');
+        const placeholder = document.getElementById('preview-placeholder');
+        const statusText = document.getElementById('status-text');
+
+        let currentImageBlob = null;
+        let currentLatex = null;
+
+        function setStatus(message) {
+            document.getElementById('status-text').textContent = message || '';
+        }
+
+        function showPreview(blob) {
+            preview.src = URL.createObjectURL(blob);
+            preview.style.display = 'block';
+            placeholder.style.display = 'none';
+        }
+
+        function showLoading(show) {
+            loading.style.display = show ? 'block' : 'none';
+        }
+
+        dropzone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                currentImageBlob = fileInput.files[0];
+                showPreview(currentImageBlob);
+                output.textContent = 'Image selected. Ready to convert.';
+            }
+        });
+
+        document.addEventListener('paste', async (event) => {
+            const items = event.clipboardData.items;
+            for (let item of items) {
+                if (item.type.indexOf('image') !== -1) {
+                    const blob = item.getAsFile();
+                    if (!blob) continue;
+                    const buffer = await blob.arrayBuffer();
+                    const extended = new Uint8Array(buffer.byteLength + 1);
+                    extended.set(new Uint8Array(buffer), 0);
+                    extended[extended.length - 1] = Math.floor(Math.random() * 256);
+                    const uniqueBlob = new Blob([extended], { type: blob.type });
+
+                    currentImageBlob = uniqueBlob;
+                    fileInput.value = "";
+                    showPreview(uniqueBlob);
+                    output.textContent = "Image pasted. Ready to convert.";
+                    return;
+                }
+            }
+
+            output.textContent = "Pasted content is not an image.";
+        });
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('dragover');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (!file.type.startsWith("image/")) {
+                    output.textContent = 'Please drop an image file.';
+                    return;
+                }
+
+                currentImageBlob = file;
+                fileInput.value = "";
+                showPreview(file);
+                output.textContent = "Image dropped. Ready to convert.";
+            }
+        });
+
+        convertButton.addEventListener('click', async () => {
+            if (!currentImageBlob) {
+                output.textContent = 'No image selected or pasted.';
+                return;
+            }
+
+            setStatus('🔄 Processing LaTeX...');
+            output.textContent = '';
+            renderedImg.style.display = 'none';
+            showLoading(true);
+
+            const file = new File([currentImageBlob], `upload_${Date.now()}.png`, {
+                type: currentImageBlob.type || 'image/png'
+            });
+            const formData = new FormData();
+            formData.append('image', file);
+
+            try {
+                const response = await fetch('/convert', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (result.latex) {
+                    currentLatex = result.latex;
+                    output.textContent = result.latex;
+                    setStatus('🌀 Rendering image...');
+
+                    const renderResponse = await fetch('/render', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ latex: currentLatex })
+                    });
+
+                    const renderResult = await renderResponse.json();
+
+                    if (renderResult.image_url) {
+                        renderedImg.src = renderResult.image_url;
+                        renderedImg.style.display = 'block';
+                        document.getElementById('render-placeholder').style.display = 'none'; // ✅ 隐藏初始提示
+                    } else {
+                        alert("Render failed: " + renderResult.error);
+                    }
+
+                    setStatus('');
+                } else {
+                    output.textContent = 'Error: ' + result.error;
+                }
+            } catch (err) {
+                output.textContent = 'Something went wrong.';
+                console.error(err);
+            }
+
+            showLoading(false);
+        });
+
+        renderButton.addEventListener('click', async () => {
+            if (!currentLatex) {
+                alert("Please convert an image first.");
+                return;
+            }
+
+            setStatus('🌀 Rendering image...');
+            showLoading(true);
+            const response = await fetch('/render', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ latex: currentLatex })
+            });
+
+            const result = await response.json();
+            showLoading(false);
+
+            if (result.image_url) {
+                renderedImg.src = result.image_url;
+                renderedImg.style.display = 'block';
+            } else {
+                alert("Render failed: " + result.error);
+            }
+
+            setStatus('');
+        });
+
+        copyButton.addEventListener('click', () => {
+            if (!currentLatex) return;
+            navigator.clipboard.writeText(currentLatex).then(() => {
+                copyButton.textContent = '✅ Copied!';
+                setTimeout(() => copyButton.textContent = '📋 Copy LaTeX', 1500);
+            });
+        });
+
+        clearButton.addEventListener('click', () => {
+            currentImageBlob = null;
+            currentLatex = null;
+            preview.style.display = 'none';
+            renderedImg.style.display = 'none';
+            document.getElementById('render-placeholder').style.display = 'block'; // ✅ 显示初始提示
+            fileInput.value = '';
+            output.textContent = 'No result yet.';
+            preview.src = '#';
+            renderedImg.src = '#';
+            placeholder.style.display = 'block';
+            
+            setStatus('');
+        });
+    </script>
+</body>
+</html>
