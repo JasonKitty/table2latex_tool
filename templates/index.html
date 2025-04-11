@@ -1,3 +1,10 @@
+<!--
+  MIT License
+  Copyright (c) 2025 JasonKitty (shibo.zhou1@gmail.com, shibo.zhou@zhejianglab.org)
+  This file is part of the Table2LaTeX Tool project.
+  See the LICENSE file in the repository root for full license text.
+-->
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -309,7 +316,7 @@
                     if (renderResult.image_url) {
                         renderedImg.src = renderResult.image_url;
                         renderedImg.style.display = 'block';
-                        document.getElementById('render-placeholder').style.display = 'none'; // ✅ 隐藏初始提示
+                        document.getElementById('render-placeholder').style.display = 'none';
                     } else {
                         alert("Render failed: " + renderResult.error);
                     }
@@ -366,7 +373,7 @@
             currentLatex = null;
             preview.style.display = 'none';
             renderedImg.style.display = 'none';
-            document.getElementById('render-placeholder').style.display = 'block'; // ✅ 显示初始提示
+            document.getElementById('render-placeholder').style.display = 'block';
             fileInput.value = '';
             output.textContent = 'No result yet.';
             preview.src = '#';

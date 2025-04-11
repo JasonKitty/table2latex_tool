@@ -1,3 +1,8 @@
+# MIT License
+# Copyright (c) 2025 JasonKitty (shibo.zhou1@gmail.com, shibo.zhou@zhejianglab.org)
+# This file is part of the Table2LaTeX Tool project.
+# See the LICENSE file in the repository root for full license text.
+
 from flask import Flask, render_template, request, jsonify
 from model import image_to_latex
 from PIL import Image
@@ -96,20 +101,16 @@ def render_latex():
     if not latex_code:
         return jsonify({"error": "No LaTeX code provided"}), 400
 
-    # 创建临时工作目录
     tmp_dir = f"/tmp/latex_render_{uuid.uuid4()}"
     os.makedirs(tmp_dir, exist_ok=True)
 
-    # 编译 PDF
     pdf_path = compile_latex(latex_code, tmp_dir)
     print('pdf', pdf_path)
     if not pdf_path or not os.path.exists(pdf_path):
         return jsonify({"error": "Failed to compile LaTeX"}), 500
 
     try:
-        # 裁剪为图像
         img_path = crop_pdf(pdf_path)
-        # 移动到 static 目录供网页访问
         final_name = f"{uuid.uuid4()}.png"
         final_path = os.path.join("static/render", final_name)
         os.makedirs(os.path.dirname(final_path), exist_ok=True)

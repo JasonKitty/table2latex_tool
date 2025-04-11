@@ -1,3 +1,8 @@
+# MIT License
+# Copyright (c) 2025 JasonKitty (shibo.zhou1@gmail.com, shibo.zhou@zhejianglab.org)
+# This file is part of the Table2LaTeX Tool project.
+# See the LICENSE file in the repository root for full license text.
+
 import os
 from PIL import Image
 from lmdeploy import pipeline, TurbomindEngineConfig, GenerationConfig
@@ -18,9 +23,6 @@ gen_config = GenerationConfig(
 )
 
 def image_to_latex(image: Image.Image) -> str:
-    """
-    接收一个 PIL.Image 图片，返回本地 lmdeploy 推理的 LaTeX 字符串。
-    """
     image_input = load_image(image)
     response = pipe(
         ("Convert this table to LaTeX.", image_input),
